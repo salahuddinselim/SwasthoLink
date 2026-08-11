@@ -27,7 +27,7 @@
                                 <p class="text-sm text-gray-600">{{ $hospital->address }}</p>
                                 <p class="text-sm text-gray-600">{{ __('Contact') }}: {{ $hospital->user->name }} ({{ $hospital->user->email }})</p>
                                 @if ($hospital->license_document_path)
-                                    <a class="text-sm underline text-indigo-600" target="_blank"
+                                    <a class="text-sm underline text-brand-600" target="_blank"
                                        href="{{ route('admin.documents.show', ['path' => $hospital->license_document_path]) }}">
                                         {{ __('View license document') }}
                                     </a>
@@ -65,13 +65,13 @@
                                 <p class="text-sm text-gray-600">{{ __('Email') }}: {{ $doctor->user->email }}</p>
                                 <div class="flex gap-3">
                                     @if ($doctor->bmdc_certificate_path)
-                                        <a class="text-sm underline text-indigo-600" target="_blank"
+                                        <a class="text-sm underline text-brand-600" target="_blank"
                                            href="{{ route('admin.documents.show', ['path' => $doctor->bmdc_certificate_path]) }}">
                                             {{ __('View BMDC certificate') }}
                                         </a>
                                     @endif
                                     @if ($doctor->nid_document_path)
-                                        <a class="text-sm underline text-indigo-600" target="_blank"
+                                        <a class="text-sm underline text-brand-600" target="_blank"
                                            href="{{ route('admin.documents.show', ['path' => $doctor->nid_document_path]) }}">
                                             {{ __('View NID') }}
                                         </a>
@@ -109,7 +109,7 @@
                                 <p class="text-sm text-gray-600">{{ $pharmacist->address }}</p>
                                 <p class="text-sm text-gray-600">{{ __('Contact') }}: {{ $pharmacist->user->name }} ({{ $pharmacist->user->email }})</p>
                                 @if ($pharmacist->license_document_path)
-                                    <a class="text-sm underline text-indigo-600" target="_blank"
+                                    <a class="text-sm underline text-brand-600" target="_blank"
                                        href="{{ route('admin.documents.show', ['path' => $pharmacist->license_document_path]) }}">
                                         {{ __('View license document') }}
                                     </a>

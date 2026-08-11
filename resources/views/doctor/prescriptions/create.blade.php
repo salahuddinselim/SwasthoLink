@@ -27,7 +27,7 @@
                     <div class="mt-4">
                         <x-input-label for="medicines" :value="__('Medicines & Dosage')" />
                         <textarea id="medicines" name="medicines" rows="6" required
-                            class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm block mt-1 w-full"
+                            class="border-gray-300 focus:border-brand-500 focus:ring-brand-500 rounded-md shadow-sm block mt-1 w-full"
                             placeholder="e.g.&#10;Napa Extra 500mg — 1 tablet 3x daily after meals, 5 days&#10;Seclo 20mg — 1 capsule before breakfast, 5 days">{{ old('medicines') }}</textarea>
                         <x-input-error :messages="$errors->get('medicines')" class="mt-2" />
                     </div>
@@ -35,7 +35,7 @@
                     <div class="mt-4">
                         <x-input-label for="notes" :value="__('Notes (optional)')" />
                         <textarea id="notes" name="notes" rows="3"
-                            class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm block mt-1 w-full">{{ old('notes') }}</textarea>
+                            class="border-gray-300 focus:border-brand-500 focus:ring-brand-500 rounded-md shadow-sm block mt-1 w-full">{{ old('notes') }}</textarea>
                         <x-input-error :messages="$errors->get('notes')" class="mt-2" />
                     </div>
 

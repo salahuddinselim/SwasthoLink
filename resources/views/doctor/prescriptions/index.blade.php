@@ -31,7 +31,7 @@
                         </div>
                         <span @class([
                             'px-2 py-1 text-xs rounded-full font-medium',
-                            'bg-blue-100 text-blue-800' => $prescription->status === 'active',
+                            'bg-brand-100 text-brand-700' => $prescription->status === 'active',
                             'bg-gray-100 text-gray-600' => $prescription->status === 'dispensed',
                         ])>
                             {{ ucfirst($prescription->status) }}
@@ -40,7 +40,7 @@
                 @empty
                     <div class="p-6 text-center text-gray-500">
                         {{ __("You haven't written any prescriptions yet.") }}
-                        <a href="{{ route('doctor.prescriptions.create') }}" class="underline text-indigo-600">{{ __('Write your first one') }}</a>.
+                        <a href="{{ route('doctor.prescriptions.create') }}" class="underline text-brand-600">{{ __('Write your first one') }}</a>.
                     </div>
                 @endforelse
             </div>

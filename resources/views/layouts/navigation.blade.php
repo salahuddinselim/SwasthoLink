@@ -19,7 +19,7 @@
             <div class="flex">
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ route($homeRoute) }}" class="font-bold text-lg text-indigo-700">
+                    <a href="{{ route($homeRoute) }}" class="font-bold text-lg text-brand-700">
                         SwasthoLink
                     </a>
                 </div>
@@ -46,7 +46,7 @@
 
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <span class="text-xs uppercase tracking-wide text-gray-400 me-3">{{ Auth::user()->role }}</span>
+                <span class="px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-brand-700 bg-brand-100 rounded-full me-3">{{ Auth::user()->role }}</span>
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
