@@ -1,6 +1,11 @@
 # SwasthoLink — Secure e-Prescription & Medical Record System
 
+**© 2026 Salah Uddin. All Rights Reserved.**
+This is a personal academic project. It is **not open source** — see [License](#license) below before reusing, copying, or redistributing any part of this code.
+
 A computer security course project built with **Laravel (PHP)**, **Tailwind CSS**, and **MySQL**, demonstrating proper authentication and applied cryptography (RSA digital signatures, Diffie–Hellman key exchange, and password hashing).
+
+> Project tracking: see [`PROJECT_OVERVIEW.md`](PROJECT_OVERVIEW.md) for what's built and the running change log, and [`TODO.md`](TODO.md) for the open task list and bug history. Product/design decisions are recorded in [`PRODUCT.md`](PRODUCT.md) and [`DESIGN.md`](DESIGN.md).
 
 ## The Problem (Bangladesh context)
 
@@ -64,6 +69,174 @@ Pages that exist specifically to make the crypto visible for demo/grading purpos
 - **Verify Prescription / Lookup by Code** — shows the hash recomputation and RSA signature check step-by-step, with a clear pass/fail explanation.
 - **Secure Share** — shows the Diffie–Hellman public-value exchange between two hospital accounts and confirms both sides derive the same session key before a record is encrypted.
 
+## Cryptography Deep Dive — The Actual Math
+
+This section exists because a security course project should be able to show *why* the crypto works, not just that a library was called. Both algorithms below are implemented with real, production-sized parameters in the app (via `phpseclib3` / PHP's `openssl_*`) — the numbers used here are deliberately tiny so the arithmetic is checkable by hand; real keys use 2048+ bit RSA moduli and standard DH groups (e.g. RFC 3526), not two-digit primes.
+
+### RSA — Digital Signatures on Prescriptions
+
+RSA relies on one hard problem: given a large number `n` that is the product of two primes, it's computationally infeasible to recover those primes (factor `n`) if they're large enough — but it's easy to multiply them together in the first place. Key generation exploits that asymmetry.
+
+**1. Key generation** (done once, when a Doctor/Hospital is approved):
+
+$$
+\begin{aligned}
+&\text{Pick two large primes } p, q \\
+&n = p \times q \\
+&\varphi(n) = (p-1)(q-1) &&\text{(Euler's totient of } n \text{)} \\
+&\text{Pick } e \text{ such that } 1 < e < \varphi(n) \text{ and } \gcd(e, \varphi(n)) = 1 \\
+&d \equiv e^{-1} \pmod{\varphi(n)} &&\text{(modular inverse of } e\text{)}
+\end{aligned}
+$$
+
+- **Public key:** $(e, n)$ — this is what gets stored in `doctor_profiles.rsa_public_key` / `hospitals.rsa_public_key` and handed to anyone who needs to verify.
+- **Private key:** $(d, n)$ — stored encrypted at rest (`rsa_private_key_encrypted`), never leaves the server, never appears in any API response.
+
+**2. Signing a prescription** (Doctor, at creation time):
+
+$$
+h = \text{SHA-256}(\text{prescription content}), \qquad s = h^{d} \bmod n
+$$
+
+The prescription's content is hashed first (never sign raw data directly), then the hash is raised to the private exponent `d` mod `n`. The result `s` is the signature, stored alongside the prescription.
+
+**3. Verifying a prescription** (automatic, at pharmacist lookup):
+
+$$
+h' = s^{e} \bmod n \overset{?}{=} \text{SHA-256}(\text{prescription content})
+$$
+
+Anyone with the doctor's *public* key can raise the signature to `e` mod `n` and check it matches a fresh hash of the content. If the content was altered by even one character, the hash won't match and verification fails — that's the tamper-evidence property. If the signature wasn't produced with the matching private key, it won't match either — that's the authenticity property.
+
+**Why it works — a tiny worked example** (toy primes, not secure sizes — for illustration only):
+
+$$
+\begin{aligned}
+p &= 61, \quad q = 53 \\
+n &= 61 \times 53 = 3233 \\
+\varphi(n) &= 60 \times 52 = 3120 \\
+e &= 17 \quad (\gcd(17, 3120) = 1) \\
+d &= 17^{-1} \bmod 3120 = 2753
+\end{aligned}
+$$
+
+To sign a message hash of, say, $h = 65$, using the **private** exponent $d = 2753$:
+
+$$
+s = 65^{2753} \bmod 3233 = 588
+$$
+
+To verify, anyone with the **public** exponent $e = 17$ checks:
+
+$$
+588^{17} \bmod 3233 = 65 = h \quad \checkmark
+$$
+
+The signer used $d$ (private) to produce `s`; anyone can use $e$ (public) to recover `h` from `s` and compare it to a freshly computed hash — without ever needing to know $d$, $p$, or $q$. (This works because $e$ and $d$ are modular inverses mod $\varphi(n)$: raising to $d$ then to $e$ returns the original value, by Euler's theorem.)
+
+```mermaid
+sequenceDiagram
+    participant D as Doctor (has private key d)
+    participant DB as Database
+    participant P as Pharmacist (has doctor's public key e)
+
+    D->>D: hash = SHA-256(prescription)
+    D->>D: signature = hash^d mod n
+    D->>DB: store {prescription, signature}
+    Note over D,DB: Private key d never leaves the server
+
+    P->>DB: lookup by code
+    DB-->>P: {prescription, signature, doctor's public key (e, n)}
+    P->>P: hash' = SHA-256(prescription)
+    P->>P: check = signature^e mod n
+    alt check == hash'
+        P->>P: ✅ Verified — authentic & unaltered
+    else check != hash'
+        P->>P: ❌ Invalid — tampered or forged, do not dispense
+    end
+```
+
+### Diffie–Hellman — Key Exchange for Hospital-to-Hospital Record Sharing
+
+Diffie–Hellman lets two parties agree on a shared secret over a channel an eavesdropper can see *completely* — without ever transmitting the secret itself. It relies on a different hard problem: given $g$, $p$, and $g^a \bmod p$, it's computationally infeasible to recover $a$ (the discrete logarithm problem) when $p$ is large.
+
+**1. Public parameters** (agreed in advance, not secret): a large prime $p$ and a generator $g$.
+
+**2. Each side picks a private value and computes a public value:**
+
+$$
+\begin{aligned}
+\text{Hospital A: pick private } a \implies A = g^{a} \bmod p \\
+\text{Hospital B: pick private } b \implies B = g^{b} \bmod p
+\end{aligned}
+$$
+
+$A$ and $B$ are exchanged over the network in the open — an eavesdropper can see both.
+
+**3. Both sides independently compute the same shared secret:**
+
+$$
+\text{Hospital A computes: } B^{a} \bmod p = (g^{b})^{a} \bmod p = g^{ab} \bmod p
+$$
+
+$$
+\text{Hospital B computes: } A^{b} \bmod p = (g^{a})^{b} \bmod p = g^{ab} \bmod p
+$$
+
+Both arrive at $g^{ab} \bmod p$ — identical — without either side ever sending $a$, $b$, or the secret itself over the wire. That shared value then becomes the key for AES-256-GCM, which actually encrypts the patient record payload before it's transmitted/stored.
+
+**Tiny worked example:**
+
+$$
+p = 23, \quad g = 5
+$$
+
+$$
+\begin{aligned}
+\text{Hospital A: } a = 6 &\implies A = 5^{6} \bmod 23 = 8 \\
+\text{Hospital B: } b = 15 &\implies B = 5^{15} \bmod 23 = 19
+\end{aligned}
+$$
+
+Exchange $A = 8$ and $B = 19$ in the open. Now:
+
+$$
+\text{A computes: } 19^{6} \bmod 23 = 2, \qquad \text{B computes: } 8^{15} \bmod 23 = 2
+$$
+
+Both land on shared secret $2$ — an observer who saw $p=23$, $g=5$, $A=8$, $B=19$ cannot feasibly recover $6$, $15$, or $2$ without solving a discrete log (trivial at this toy size, computationally infeasible at real key sizes of 2048+ bits).
+
+```mermaid
+sequenceDiagram
+    participant HA as Hospital A
+    participant HB as Hospital B
+
+    Note over HA,HB: Public, pre-agreed: prime p, generator g
+
+    HA->>HA: pick private a, compute A = g^a mod p
+    HB->>HB: pick private b, compute B = g^b mod p
+
+    HA->>HB: send A (public)
+    HB->>HA: send B (public)
+
+    HA->>HA: shared = B^a mod p
+    HB->>HB: shared = A^b mod p
+    Note over HA,HB: Both derive the same g^(ab) mod p — never transmitted directly
+
+    HA->>HA: AES-256-GCM encrypt(record, key=shared)
+    HA->>HB: send encrypted record
+    HB->>HB: AES-256-GCM decrypt(record, key=shared)
+```
+
+### Why These Two Together
+
+RSA and Diffie–Hellman solve different problems and are used for different things in this app — this is deliberate, not redundant:
+
+| | Solves | Used for |
+|---|---|---|
+| **RSA** | Authenticity + non-repudiation: proving *who* signed something and that it wasn't altered | Prescription signing (one-to-many verification — anyone can check a doctor's signature) |
+| **Diffie–Hellman** | Confidentiality: establishing a shared secret between exactly two parties over an open channel | Hospital-to-hospital record sharing (a session key for one specific conversation) |
+
 ## General Security Practices Included
 
 - CSRF protection on all forms (Laravel default)
@@ -85,16 +258,24 @@ Pages that exist specifically to make the crypto visible for demo/grading purpos
 
 ## Build Order
 
-1. Laravel + Breeze scaffold, user roles (Admin/Hospital/Doctor/Patient/Pharmacist), RBAC middleware
-2. Password authentication end-to-end (register/login/reset)
-3. Verification gate: BMDC/document submission + Admin/Hospital approval workflow before an account becomes active
-4. RSA: doctor & hospital keypair generation, prescription signing
-5. Pharmacy lookup-code flow: code generation, expiry/single-use, second-factor check, verification screen
-6. Diffie–Hellman: key-exchange endpoint + AES envelope encryption for hospital-to-hospital record sharing
-7. Audit logging, rate limiting, authorization policy pass
-8. UI polish for the five role dashboards plus the two explainer pages
-9. Short written security report (threat model, what each crypto primitive defends against)
+1. ✅ Laravel + Breeze scaffold, user roles (Admin/Hospital/Doctor/Patient/Pharmacist), RBAC middleware
+2. ✅ Password authentication end-to-end (register/login/reset)
+3. ✅ Verification gate: BMDC/document submission + Admin/Hospital approval workflow before an account becomes active
+4. ✅ Functional prescription workflow (create, lookup by code, dispense) — the scaffold RSA signing attaches to
+5. ⬜ RSA: doctor & hospital keypair generation, prescription signing, verification at lookup
+6. ⬜ Diffie–Hellman: key-exchange endpoint + AES envelope encryption for hospital-to-hospital record sharing
+7. ⬜ Lookup-code expiry/single-use hardening, second-factor check, rate limiting
+8. ✅ UI polish for the five role dashboards
+9. ⬜ Short written security report (threat model, what each crypto primitive defends against)
+
+Live status and detailed task-by-task tracking (including bugs found/fixed) is kept in [`TODO.md`](TODO.md), updated as work happens — this list is a snapshot, that file is the source of truth.
+
+## License
+
+**© 2026 Salah Uddin. All Rights Reserved.**
+
+This is a personal project, not open source. See [`LICENSE`](LICENSE) for full terms. No permission is granted to copy, reuse, redistribute, or create derivative works from this code without the author's explicit written consent — this applies regardless of whether the hosting repository is public or private.
 
 ---
 
-*Next step: scaffold the Laravel project inside this folder and start on step 1 of the build order.*
+*Status: functional multi-role scaffold complete (auth, approval workflow, prescription CRUD, dashboards). Core cryptography (RSA signing, Diffie–Hellman) is the next phase — see `TODO.md`.*

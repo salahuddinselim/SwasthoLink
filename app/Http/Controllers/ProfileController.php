@@ -39,9 +39,19 @@ class ProfileController extends Controller
 
     /**
      * Delete the user's account.
+     *
+     * Restricted to patients: Doctor/Hospital/Pharmacist accounts have
+     * dependent records (prescriptions, audit trail, affiliations) that must
+     * not disappear via cascade delete, and there is no recovery path if the
+     * only Admin account is removed.
      */
     public function destroy(Request $request): RedirectResponse
     {
+        if ($request->user()->role !== 'patient') {
+            return Redirect::route('profile.edit')
+                ->with('status', 'account-deletion-restricted');
+        }
+
         $request->validateWithBag('userDeletion', [
             'password' => ['required', 'current_password'],
         ]);

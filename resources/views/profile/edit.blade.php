@@ -19,11 +19,19 @@
                 </div>
             </div>
 
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.delete-user-form')
+            @if (auth()->user()->role === 'patient')
+                <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+                    <div class="max-w-xl">
+                        @include('profile.partials.delete-user-form')
+                    </div>
                 </div>
-            </div>
+            @else
+                <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+                    <div class="max-w-xl text-sm text-gray-500">
+                        {{ __('Account deletion is not available for :role accounts, since deleting one could remove records other people depend on (prescriptions, approvals, audit history). Contact an administrator if you need this account removed.', ['role' => auth()->user()->role]) }}
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </x-app-layout>
