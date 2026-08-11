@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -64,6 +65,16 @@ class User extends Authenticatable
     public function pharmacistProfile(): HasOne
     {
         return $this->hasOne(PharmacistProfile::class);
+    }
+
+    public function prescriptionsWritten(): HasMany
+    {
+        return $this->hasMany(Prescription::class, 'doctor_id');
+    }
+
+    public function prescriptionsReceived(): HasMany
+    {
+        return $this->hasMany(Prescription::class, 'patient_id');
     }
 
     public function isAdmin(): bool
