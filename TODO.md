@@ -19,6 +19,10 @@ Task list for SwasthoLink. Check off tasks as they're completed; uncheck if some
 - [x] Hospital dashboard (affiliated doctors + their prescriptions)
 - [x] Visual identity: brand color system (`tailwind.config.js`), typography, `PRODUCT.md` + `DESIGN.md`
 - [x] `PROJECT_OVERVIEW.md` and `TODO.md` for ongoing tracking
+- [x] RSA/Diffie-Hellman math explainer + Mermaid diagrams in README
+- [x] `LICENSE` (All Rights Reserved) + README license notice
+- [x] `database/sql/swastholink.sql` — importable schema + seeded Admin (verified via import + login test)
+- [x] README: curated Project Structure tree, local setup instructions (migration or SQL-import path), manual verification walkthrough
 - [ ] RSA keypair generation for Doctors and Hospitals (on approval)
 - [ ] Prescription signing with the doctor's RSA private key
 - [ ] Signature verification at pharmacist lookup (auto, shown as pass/fail)
@@ -37,11 +41,11 @@ Task list for SwasthoLink. Check off tasks as they're completed; uncheck if some
 - [x] Rejected accounts saw the same "pending, waiting for admin" message as truly-pending accounts, with no rejection reason shown — fixed by branching the pending-approval page on account status.
 - [x] Admin approve/reject flash messages read "Dr. Dr. Fatema Begum" — doctor's own name already contained "Dr.", controller was prepending another one — fixed by dropping the hardcoded prefix.
 - [x] Role-gated nav links (e.g. "New Prescription") showed for accounts still pending approval, leading to a dead-end 403 on click — fixed by hiding those links until the account is active.
-- [x] GitHub listed Claude as a repo contributor from an initial commit that included a `Co-Authored-By` trailer — fixed by amending the commit (trailer removed) and force-pushing; confirmed via GitHub's contributor sidebar clearing.
+- [x] GitHub listed Claude as a repo contributor from an initial commit that included a `Co-Authored-By` trailer — repo history fixed (commit amended, trailer removed, force-pushed; verified via `git log`, no other ref reaches the old commit). GitHub's own contributor sidebar cache has not caught up as of the last check — see matching entry in Open Bugs, since that part is outside this repo's control.
 - [x] **(High severity)** Any authenticated user — including Doctor, Hospital, Pharmacist, and even Admin — could permanently delete their own account via the stock Breeze "Delete Account" profile feature. Because `prescriptions.doctor_id` cascade-deletes, a Doctor deleting their account would have silently destroyed every prescription they ever wrote — permanently erasing patient medical records — and there was no protection against the only Admin account deleting itself, which would have locked the whole approval chain with no recovery path. Fixed by restricting self-service account deletion to Patient accounts only (`ProfileController::destroy`, enforced server-side regardless of how the request arrives) and hiding the delete-account UI for other roles with an explanatory message.
 
 ## Open Bugs
 
 <!-- Add entries here as [ ] when found; move to "Bugs Found & Fixed" as [x] once resolved. -->
 
-(none currently open)
+- [ ] GitHub's contributor sidebar (github.com/salahuddinselim/SwasthoLink) still lists "claude" alongside "salahuddinselim" as of the last check, even though the actual git history has no Claude attribution anywhere (verified via `git log`, `git ls-remote`, and `git reflog`). This is GitHub's own cached contributor index not having recomputed after the force-push — not something fixable from this repo's side. Options if it doesn't self-resolve: wait longer, or delete and recreate the repo (currently 0 stars/forks/issues, so nothing would be lost).

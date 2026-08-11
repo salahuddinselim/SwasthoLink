@@ -256,6 +256,167 @@ RSA and Diffie–Hellman solve different problems and are used for different thi
 - **Database**: MySQL/MariaDB via Eloquent ORM
 - **Crypto**: PHP `openssl_*` functions for RSA keygen/sign/verify, `phpseclib3` for Diffie–Hellman, `openssl_encrypt`/`openssl_decrypt` (AES-256-GCM) for the DH-derived symmetric key
 
+## Project Structure
+
+Only files that make up this project's actual work are listed — Laravel's own framework internals (`vendor/`, `bootstrap/cache/`, etc.) are omitted since they're generated, not hand-written.
+
+```
+SwasthoLink/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   │   ├── Admin/
+│   │   │   │   ├── ApprovalController.php      # approve/reject hospitals, doctors, pharmacists
+│   │   │   │   ├── DashboardController.php     # Admin stats overview
+│   │   │   │   └── DocumentController.php      # secure, audit-logged verification-document viewer
+│   │   │   ├── Auth/
+│   │   │   │   ├── RegisteredDoctorController.php
+│   │   │   │   ├── RegisteredHospitalController.php
+│   │   │   │   ├── RegisteredPharmacistController.php
+│   │   │   │   └── RegisteredUserController.php    # patient registration (Breeze default, adapted)
+│   │   │   ├── HospitalDashboardController.php
+│   │   │   ├── PrescriptionController.php          # create / list / lookup / dispense
+│   │   │   └── ProfileController.php               # account settings (deletion restricted to patients)
+│   │   └── Middleware/
+│   │       └── EnsureUserHasRole.php                # role + active-status route gating
+│   └── Models/
+│       ├── AuditLog.php
+│       ├── DoctorProfile.php
+│       ├── Hospital.php
+│       ├── PharmacistProfile.php
+│       ├── Prescription.php
+│       └── User.php
+├── database/
+│   ├── migrations/
+│   │   ├── ..._add_role_and_status_to_users_table.php
+│   │   ├── ..._create_hospitals_table.php
+│   │   ├── ..._create_doctor_profiles_table.php
+│   │   ├── ..._create_pharmacist_profiles_table.php
+│   │   ├── ..._create_audit_logs_table.php
+│   │   └── ..._create_prescriptions_table.php
+│   ├── seeders/
+│   │   └── DatabaseSeeder.php       # seeds the default Admin account
+│   └── sql/
+│       └── swastholink.sql          # full schema + seeded Admin — importable directly into MySQL
+├── resources/views/
+│   ├── admin/
+│   │   ├── approvals.blade.php
+│   │   └── dashboard.blade.php
+│   ├── auth/
+│   │   ├── register.blade.php
+│   │   ├── register-doctor.blade.php
+│   │   ├── register-hospital.blade.php
+│   │   └── register-pharmacist.blade.php
+│   ├── components/                  # buttons, inputs, nav-link — brand color tokens applied
+│   ├── doctor/prescriptions/
+│   │   ├── create.blade.php
+│   │   └── index.blade.php
+│   ├── hospital/
+│   │   └── dashboard.blade.php
+│   ├── layouts/
+│   │   ├── app.blade.php
+│   │   ├── guest.blade.php
+│   │   └── navigation.blade.php     # role-aware nav links, role badge
+│   ├── patient/prescriptions/
+│   │   └── index.blade.php
+│   ├── pharmacist/
+│   │   └── lookup.blade.php
+│   ├── pending-approval.blade.php   # branches on pending vs rejected status
+│   └── welcome.blade.php
+├── routes/
+│   ├── auth.php                     # + hospital/doctor/pharmacist registration routes
+│   └── web.php                      # role-gated route groups per dashboard
+├── tailwind.config.js               # brand color scale (security-blue palette)
+├── PRODUCT.md                       # durable product facts: users, purpose, positioning
+├── DESIGN.md                        # the visual system (colors, typography, layout patterns)
+├── PROJECT_OVERVIEW.md              # architecture summary + running change log
+├── TODO.md                          # task checklist + bug log (found → fixed)
+├── LICENSE                          # All Rights Reserved
+└── README.md                        # this file
+```
+
+## Getting Started — Running the System Locally
+
+**Prerequisites:** PHP 8.2+, Composer, MySQL/MariaDB, Node.js + npm. (Any stack that provides these works — this project was built against XAMPP on Windows.)
+
+### 1. Clone and install dependencies
+
+```bash
+git clone https://github.com/salahuddinselim/SwasthoLink.git
+cd SwasthoLink
+composer install
+npm install
+```
+
+### 2. Configure the environment
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+Edit `.env` and point the `DB_*` variables at a MySQL server:
+
+```
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=swastholink
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+### 3. Set up the database — two options
+
+**Option A — Laravel migrations (recommended):** lets Laravel create the schema and keeps migration history correct for future changes.
+
+```bash
+php artisan migrate
+php artisan db:seed
+```
+
+**Option B — Import the provided SQL file directly:** no `artisan` needed, useful if you just want the database ready in phpMyAdmin/MySQL Workbench/CLI. This creates the `swastholink` database, all tables, and the seeded Admin account in one shot.
+
+```bash
+mysql -u root -p < database/sql/swastholink.sql
+```
+
+Both options leave the database in the same state — pick whichever fits your workflow. If you use Option B, you can skip `php artisan migrate` and `php artisan db:seed` entirely.
+
+### 4. Build frontend assets and run
+
+```bash
+npm run build       # or `npm run dev` for hot-reload during development
+php artisan serve
+```
+
+Visit `http://127.0.0.1:8000`.
+
+### Default Admin login
+
+Both setup options seed the same account:
+
+- **Email:** `admin@swastholink.test`
+- **Password:** `ChangeMe123!`
+
+Change this password after first login in a real deployment — it's a known default meant only for local development/grading.
+
+## Verifying / Testing the System
+
+A quick end-to-end walkthrough to confirm everything works after setup:
+
+1. **Log in as Admin** (credentials above) — lands on the stats dashboard at `/admin`.
+2. **Register a provider account** — open a private/incognito window and register at `/register/hospital`, `/register/doctor`, or `/register/pharmacist`, uploading any PDF/image as the verification document. The account lands on a "pending approval" page and cannot access its dashboard yet.
+3. **Approve it** — back in the Admin session, go to **Approvals** (`/admin/approvals`), view the uploaded document, and click **Approve**. The pending count drops and an audit log entry is recorded.
+4. **Log in as the newly approved account** — it now reaches its real dashboard instead of the pending page.
+5. **Doctor → Patient → Pharmacist loop:**
+   - As an approved Doctor, go to **New Prescription**, fill it in, and submit — note the generated lookup code (`RX-XXXXXX`).
+   - Register (or log in as) a Patient using the same email you entered as "Patient Email" on the prescription — it should appear on `/patient/prescriptions`.
+   - Log in as an approved Pharmacist, go to `/pharmacist/lookup`, enter the code — the prescription details should appear with a "Mark as Dispensed" button. Click it, then look the same code up again to confirm it now shows "Dispensed" and can't be dispensed twice.
+6. **Check role isolation** — while logged in as any non-Admin role, try visiting `/admin/approvals` or another role's routes directly by URL; each should return a 403, not the page.
+
+If all six steps behave as described, the system is working as intended.
+
 ## Build Order
 
 1. ✅ Laravel + Breeze scaffold, user roles (Admin/Hospital/Doctor/Patient/Pharmacist), RBAC middleware
