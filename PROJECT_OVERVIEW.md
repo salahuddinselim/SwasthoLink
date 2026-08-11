@@ -41,6 +41,7 @@ Established security-blue "Accessible & Ethical" design system (brand color scal
 
 <!-- Newest entries at the top. One line per meaningful change: what, and why if not obvious. -->
 
+- **2026-08-11** — Ran a `/qa` pass (mobile responsiveness, error handling, security probing). Found and fixed one high-severity bug: the admin document viewer crashed to an unhandled 500 with a full debug stack trace on a path-traversal attempt, instead of validating input itself. Health score 95.5 → 98.5. Full report in `.gstack/qa-reports/`.
 - **2026-08-11** — Added `database/sql/swastholink.sql` (importable schema + seeded Admin, verified by import-and-login test) plus README sections: curated Project Structure tree, step-by-step local setup (migrations or direct SQL import), and a manual verification walkthrough.
 - **2026-08-11** — Added RSA/Diffie-Hellman mathematical explanations and a proprietary license notice to README.md.
 - **2026-08-11** — Full bug-hunt pass across the running system. Found and fixed a high-severity issue: any account (including Admin) could self-delete via the stock Breeze profile page, which would have cascade-deleted a Doctor's entire prescription history. Restricted self-deletion to Patient accounts. Full details in `TODO.md`.

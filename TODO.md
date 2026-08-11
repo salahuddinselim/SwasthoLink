@@ -35,6 +35,7 @@ Task list for SwasthoLink. Check off tasks as they're completed; uncheck if some
 - [ ] Loading/disabled state on submit buttons during file uploads
 - [ ] Inline (on-blur) client-side form validation
 - [ ] Written security report (threat model, what each crypto primitive defends against)
+- [ ] Remove the vestigial `verified` middleware from `/dashboard` — `User` doesn't implement `MustVerifyEmail`, so it silently no-ops; either wire up real email verification or drop the dead middleware (found during `/qa`, not a bug, just cleanup)
 
 ## Bugs Found & Fixed
 
@@ -43,6 +44,7 @@ Task list for SwasthoLink. Check off tasks as they're completed; uncheck if some
 - [x] Role-gated nav links (e.g. "New Prescription") showed for accounts still pending approval, leading to a dead-end 403 on click — fixed by hiding those links until the account is active.
 - [x] GitHub listed Claude as a repo contributor from an initial commit that included a `Co-Authored-By` trailer — repo history fixed (commit amended, trailer removed, force-pushed; verified via `git log`, no other ref reaches the old commit). GitHub's own contributor sidebar cache has not caught up as of the last check — see matching entry in Open Bugs, since that part is outside this repo's control.
 - [x] **(High severity)** Any authenticated user — including Doctor, Hospital, Pharmacist, and even Admin — could permanently delete their own account via the stock Breeze "Delete Account" profile feature. Because `prescriptions.doctor_id` cascade-deletes, a Doctor deleting their account would have silently destroyed every prescription they ever wrote — permanently erasing patient medical records — and there was no protection against the only Admin account deleting itself, which would have locked the whole approval chain with no recovery path. Fixed by restricting self-service account deletion to Patient accounts only (`ProfileController::destroy`, enforced server-side regardless of how the request arrives) and hiding the delete-account UI for other roles with an explanatory message.
+- [x] **(High severity)** `/qa` pass found: sending a crafted `?path=` with `../` traversal sequences to the admin document viewer (`DocumentController::show`) crashed to an **unhandled 500 error with a full debug stack trace** instead of a clean 404 — the controller relied on Flysystem's internal `PathTraversalDetected` exception to reject the input rather than validating it itself, and that exception was never caught. No file was actually read out of bounds (Flysystem's own guard fires first), but with `APP_DEBUG=true` the crash page leaks framework internals, file paths, and the attempted payload. Fixed by rejecting any `path` containing `..` before it reaches storage. Verified: traversal payload now 404s cleanly; legitimate document viewing re-tested and still works. Full writeup: `.gstack/qa-reports/qa-report-swastholink-2026-08-11.md`.
 
 ## Open Bugs
 
