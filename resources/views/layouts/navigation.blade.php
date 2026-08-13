@@ -41,6 +41,12 @@
                             {{ __('New Prescription') }}
                         </x-nav-link>
                     @endif
+
+                    @if ($accountUsable && Auth::user()->isHospital())
+                        <x-nav-link :href="route('hospital.shares.index')" :active="request()->routeIs('hospital.shares.*')">
+                            {{ __('Record Sharing') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -107,6 +113,12 @@
             @if ($accountUsable && Auth::user()->isDoctor())
                 <x-responsive-nav-link :href="route('doctor.prescriptions.create')" :active="request()->routeIs('doctor.prescriptions.create')">
                     {{ __('New Prescription') }}
+                </x-responsive-nav-link>
+            @endif
+
+            @if ($accountUsable && Auth::user()->isHospital())
+                <x-responsive-nav-link :href="route('hospital.shares.index')" :active="request()->routeIs('hospital.shares.*')">
+                    {{ __('Record Sharing') }}
                 </x-responsive-nav-link>
             @endif
         </div>

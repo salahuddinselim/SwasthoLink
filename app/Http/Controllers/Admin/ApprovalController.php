@@ -7,12 +7,15 @@ use App\Models\AuditLog;
 use App\Models\DoctorProfile;
 use App\Models\Hospital;
 use App\Models\PharmacistProfile;
+use App\Services\RsaKeyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ApprovalController extends Controller
 {
+    public function __construct(private RsaKeyService $rsaKeys) {}
+
     public function index(): View
     {
         $hospitals = Hospital::with('user')->whereHas('user', fn ($q) => $q->where('status', 'pending'))->latest()->get();
@@ -28,9 +31,13 @@ class ApprovalController extends Controller
 
     public function approveHospital(Hospital $hospital): RedirectResponse
     {
+        $keys = $this->rsaKeys->generateKeyPair();
+
         $hospital->update([
             'verified_by' => auth()->id(),
             'verified_at' => now(),
+            'rsa_public_key' => $keys['public_key'],
+            'rsa_private_key_encrypted' => $keys['private_key_encrypted'],
         ]);
         $hospital->user->update(['status' => 'active']);
 
@@ -53,9 +60,13 @@ class ApprovalController extends Controller
 
     public function approveDoctor(DoctorProfile $doctor): RedirectResponse
     {
+        $keys = $this->rsaKeys->generateKeyPair();
+
         $doctor->update([
             'verified_by' => auth()->id(),
             'verified_at' => now(),
+            'rsa_public_key' => $keys['public_key'],
+            'rsa_private_key_encrypted' => $keys['private_key_encrypted'],
         ]);
         $doctor->user->update(['status' => 'active']);
 

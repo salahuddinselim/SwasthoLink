@@ -28,7 +28,7 @@ class AuditLog extends Model
         return $this->belongsTo(User::class);
     }
 
-    public static function record(string $action, ?\Illuminate\Database\Eloquent\Model $target = null, array $meta = []): self
+    public static function record(string $action, ?Model $target = null, array $meta = []): self
     {
         return static::create([
             'user_id' => auth()->id(),

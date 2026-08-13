@@ -18,9 +18,12 @@ class Prescription extends Model
         'patient_id',
         'patient_name',
         'patient_email',
+        'patient_phone',
         'medicines',
         'notes',
+        'signature',
         'status',
+        'expires_at',
         'dispensed_by',
         'dispensed_at',
     ];
@@ -29,14 +32,24 @@ class Prescription extends Model
     {
         return [
             'dispensed_at' => 'datetime',
+            'expires_at' => 'datetime',
         ];
     }
+
+    /** Lookup codes are valid for this many days after issue. */
+    public const LOOKUP_CODE_VALIDITY_DAYS = 30;
 
     protected static function booted(): void
     {
         static::creating(function (Prescription $prescription) {
             $prescription->lookup_code ??= static::generateUniqueLookupCode();
+            $prescription->expires_at ??= now()->addDays(self::LOOKUP_CODE_VALIDITY_DAYS);
         });
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at !== null && $this->expires_at->isPast();
     }
 
     public static function generateUniqueLookupCode(): string

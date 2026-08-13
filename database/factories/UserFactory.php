@@ -30,6 +30,12 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            // Explicit rather than relying on the DB column defaults: the DB
+            // default doesn't populate the in-memory model returned by
+            // create(), which matters because actingAs() in tests uses that
+            // instance directly rather than re-fetching from the database.
+            'role' => 'patient',
+            'status' => 'active',
         ];
     }
 

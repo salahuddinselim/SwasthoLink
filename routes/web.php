@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\ApprovalController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DocumentController;
+use App\Http\Controllers\Hospital\ShareController as HospitalShareController;
 use App\Http\Controllers\HospitalDashboardController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\ProfileController;
@@ -26,7 +27,7 @@ Route::get('/dashboard', function () {
         'pharmacist' => redirect()->route('pharmacist.lookup'),
         default => redirect()->route('patient.prescriptions.index'),
     };
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware('auth')->name('dashboard');
 
 Route::get('/pending-approval', function () {
     $user = auth()->user();
@@ -67,6 +68,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
 Route::middleware(['auth', 'role:hospital'])->prefix('hospital')->name('hospital.')->group(function () {
     Route::get('/', [HospitalDashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/shares', [HospitalShareController::class, 'index'])->name('shares.index');
+    Route::post('/shares', [HospitalShareController::class, 'store'])->name('shares.store');
+    Route::post('/shares/{share}/accept', [HospitalShareController::class, 'accept'])->name('shares.accept');
+    Route::post('/shares/{share}/reject', [HospitalShareController::class, 'reject'])->name('shares.reject');
+    Route::get('/shares/{share}', [HospitalShareController::class, 'show'])->name('shares.show');
 });
 
 Route::middleware(['auth', 'role:doctor'])->prefix('doctor')->name('doctor.')->group(function () {
@@ -81,7 +88,8 @@ Route::middleware(['auth', 'role:patient'])->prefix('patient')->name('patient.')
 
 Route::middleware(['auth', 'role:pharmacist'])->prefix('pharmacist')->name('pharmacist.')->group(function () {
     Route::get('/lookup', [PrescriptionController::class, 'lookupForm'])->name('lookup');
-    Route::post('/lookup', [PrescriptionController::class, 'lookup'])->name('lookup.search');
+    Route::post('/lookup', [PrescriptionController::class, 'lookup'])->name('lookup.search')->middleware('throttle:20,1');
+    Route::post('/lookup/verify', [PrescriptionController::class, 'verify'])->name('lookup.verify')->middleware('throttle:20,1');
     Route::post('/prescriptions/{prescription}/dispense', [PrescriptionController::class, 'dispense'])->name('prescriptions.dispense');
 });
 

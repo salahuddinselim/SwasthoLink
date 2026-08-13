@@ -9,57 +9,66 @@
         <a class="underline" href="{{ route('register.pharmacist') }}">{{ __('pharmacist') }}</a>.
     </div>
 
-    <form method="POST" action="{{ route('register.hospital') }}" enctype="multipart/form-data">
+    <p class="text-xs text-gray-500 mb-4">* required</p>
+
+    <form method="POST" action="{{ route('register.hospital') }}" enctype="multipart/form-data" x-data="{ submitting: false, touched: {} }" x-on:submit="submitting = true">
         @csrf
 
         <div>
-            <x-input-label for="name" :value="__('Your Name (Admin Contact)')" />
-            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
+            <x-input-label for="name" :value="__('Your Name (Admin Contact) *')" />
+            <x-text-input id="name" x-ref="name" x-on:blur="touched.name = true" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
+            <p x-show="touched.name && !$refs.name.checkValidity()" x-text="$refs.name.validationMessage" class="text-sm text-red-600 mt-1"></p>
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
 
         <div class="mt-4">
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
+            <x-input-label for="email" :value="__('Email *')" />
+            <x-text-input id="email" x-ref="email" x-on:blur="touched.email = true" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
+            <p x-show="touched.email && !$refs.email.checkValidity()" x-text="$refs.email.validationMessage" class="text-sm text-red-600 mt-1"></p>
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
         <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-            <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
+            <x-input-label for="password" :value="__('Password *')" />
+            <x-text-input id="password" x-ref="password" x-on:blur="touched.password = true" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
+            <p x-show="touched.password && !$refs.password.checkValidity()" x-text="$refs.password.validationMessage" class="text-sm text-red-600 mt-1"></p>
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
         <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-            <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation" required autocomplete="new-password" />
+            <x-input-label for="password_confirmation" :value="__('Confirm Password *')" />
+            <x-text-input id="password_confirmation" x-ref="password_confirmation" x-on:blur="touched.password_confirmation = true" class="block mt-1 w-full" type="password" name="password_confirmation" required autocomplete="new-password" />
+            <p x-show="touched.password_confirmation && !$refs.password_confirmation.checkValidity()" x-text="$refs.password_confirmation.validationMessage" class="text-sm text-red-600 mt-1"></p>
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
         </div>
 
         <hr class="my-6">
 
         <div>
-            <x-input-label for="hospital_name" :value="__('Hospital / Clinic Name')" />
-            <x-text-input id="hospital_name" class="block mt-1 w-full" type="text" name="hospital_name" :value="old('hospital_name')" required />
+            <x-input-label for="hospital_name" :value="__('Hospital / Clinic Name *')" />
+            <x-text-input id="hospital_name" x-ref="hospital_name" x-on:blur="touched.hospital_name = true" class="block mt-1 w-full" type="text" name="hospital_name" :value="old('hospital_name')" required />
+            <p x-show="touched.hospital_name && !$refs.hospital_name.checkValidity()" x-text="$refs.hospital_name.validationMessage" class="text-sm text-red-600 mt-1"></p>
             <x-input-error :messages="$errors->get('hospital_name')" class="mt-2" />
         </div>
 
         <div class="mt-4">
-            <x-input-label for="registration_number" :value="__('Legal Registration Number (DGHS / Trade License)')" />
-            <x-text-input id="registration_number" class="block mt-1 w-full" type="text" name="registration_number" :value="old('registration_number')" required />
+            <x-input-label for="registration_number" :value="__('Legal Registration Number (DGHS / Trade License) *')" />
+            <x-text-input id="registration_number" x-ref="registration_number" x-on:blur="touched.registration_number = true" class="block mt-1 w-full" type="text" name="registration_number" :value="old('registration_number')" required />
+            <p x-show="touched.registration_number && !$refs.registration_number.checkValidity()" x-text="$refs.registration_number.validationMessage" class="text-sm text-red-600 mt-1"></p>
             <x-input-error :messages="$errors->get('registration_number')" class="mt-2" />
         </div>
 
         <div class="mt-4">
-            <x-input-label for="address" :value="__('Address')" />
+            <x-input-label for="address" :value="__('Address (optional)')" />
             <x-text-input id="address" class="block mt-1 w-full" type="text" name="address" :value="old('address')" />
             <x-input-error :messages="$errors->get('address')" class="mt-2" />
         </div>
 
         <div class="mt-4">
-            <x-input-label for="license_document" :value="__('Registration / License Document (PDF or image)')" />
-            <input id="license_document" type="file" name="license_document" required
+            <x-input-label for="license_document" :value="__('Registration / License Document (PDF or image) *')" />
+            <input id="license_document" x-ref="license_document" x-on:blur="touched.license_document = true" type="file" name="license_document" required
                 class="block mt-1 w-full text-sm text-gray-700 border border-gray-300 rounded-md file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-gray-100" />
+            <p x-show="touched.license_document && !$refs.license_document.checkValidity()" x-text="$refs.license_document.validationMessage" class="text-sm text-red-600 mt-1"></p>
             <x-input-error :messages="$errors->get('license_document')" class="mt-2" />
         </div>
 
@@ -68,8 +77,9 @@
                 {{ __('Already registered?') }}
             </a>
 
-            <x-primary-button class="ms-4">
-                {{ __('Submit for Review') }}
+            <x-primary-button class="ms-4" x-bind:disabled="submitting">
+                <span x-show="!submitting">{{ __('Submit for Review') }}</span>
+                <span x-show="submitting" x-cloak>{{ __('Submitting…') }}</span>
             </x-primary-button>
         </div>
     </form>
