@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\RegisteredDoctorController;
 use App\Http\Controllers\Auth\RegisteredHospitalController;
 use App\Http\Controllers\Auth\RegisteredPharmacistController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,17 @@ Route::middleware('guest')->group(function () {
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
 });
+
+// Deliberately outside the `guest` middleware group: at this point the user
+// has passed the password check but Auth::logout() was called immediately
+// (see AuthenticatedSessionController::store), so `guest` would still let
+// them through — but they also aren't "logged in" for `auth` to apply. Only
+// a valid TOTP/recovery code, checked against the pending
+// `two_factor.user_id` in session, can complete the login from here.
+Route::get('two-factor-challenge', [TwoFactorChallengeController::class, 'create'])
+    ->name('two-factor.challenge');
+Route::post('two-factor-challenge', [TwoFactorChallengeController::class, 'store'])
+    ->middleware('throttle:10,1');
 
 Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)

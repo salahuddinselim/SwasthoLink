@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Prescription;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Services\PrescriptionSigningService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,7 +13,10 @@ use Illuminate\View\View;
 
 class PrescriptionController extends Controller
 {
-    public function __construct(private PrescriptionSigningService $signing) {}
+    public function __construct(
+        private PrescriptionSigningService $signing,
+        private NotificationService $notifications,
+    ) {}
 
     /**
      * Doctor: form to write a new prescription.
@@ -67,18 +71,86 @@ class PrescriptionController extends Controller
 
         AuditLog::record('prescription.created', $prescription);
 
+        if ($patient) {
+            $this->notifications->notify(
+                $patient,
+                'prescription.created',
+                "New prescription from {$doctor->name}",
+                "Lookup code {$prescription->lookup_code}",
+                route('patient.prescriptions.index'),
+            );
+        }
+
         return redirect()->route('doctor.prescriptions.index')
-            ->with('status', "Prescription created. Lookup code: {$prescription->lookup_code}");
+            ->with('status', "Prescription created. Lookup code: {$prescription->lookup_code}")
+            ->with('new_lookup_code', $prescription->lookup_code);
     }
 
     /**
-     * Doctor: list prescriptions they've written.
+     * Doctor: list prescriptions they've written, with an at-a-glance
+     * summary (how many patients, how many still active) and optional
+     * search by patient name / lookup code and a date range.
      */
     public function doctorIndex(Request $request): View
     {
-        $prescriptions = $request->user()->prescriptionsWritten()->latest()->paginate(15);
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+        ]);
 
-        return view('doctor.prescriptions.index', ['prescriptions' => $prescriptions]);
+        $base = $request->user()->prescriptionsWritten();
+
+        $stats = [
+            'total' => (clone $base)->count(),
+            'active' => (clone $base)->where('status', 'active')->count(),
+            'dispensed' => (clone $base)->where('status', 'dispensed')->count(),
+            'unique_patients' => (clone $base)->distinct('patient_phone')->count('patient_phone'),
+        ];
+
+        $prescriptions = $base
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $term = $request->search;
+                $q->where(fn ($q2) => $q2->where('patient_name', 'like', "%{$term}%")
+                    ->orWhere('lookup_code', 'like', '%'.strtoupper($term).'%'));
+            })
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('created_at', '>=', $request->from))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('created_at', '<=', $request->to))
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('doctor.prescriptions.index', ['prescriptions' => $prescriptions, 'stats' => $stats]);
+    }
+
+    /**
+     * Doctor: export their own prescription history as CSV (respects the
+     * same search/date filters as the list view).
+     */
+    public function doctorExportCsv(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $prescriptions = $request->user()->prescriptionsWritten()
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $term = $request->search;
+                $q->where(fn ($q2) => $q2->where('patient_name', 'like', "%{$term}%")
+                    ->orWhere('lookup_code', 'like', '%'.strtoupper($term).'%'));
+            })
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('created_at', '>=', $request->from))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('created_at', '<=', $request->to))
+            ->latest()
+            ->get();
+
+        return response()->streamDownload(function () use ($prescriptions) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Lookup Code', 'Patient Name', 'Patient Phone', 'Medicines', 'Status', 'Issued', 'Expires']);
+            foreach ($prescriptions as $p) {
+                fputcsv($out, [
+                    $p->lookup_code, $p->patient_name, $p->patient_phone, $p->medicines,
+                    $p->status, $p->created_at->format('Y-m-d H:i'), $p->expires_at?->format('Y-m-d'),
+                ]);
+            }
+            fclose($out);
+        }, 'prescriptions-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);
     }
 
     /**

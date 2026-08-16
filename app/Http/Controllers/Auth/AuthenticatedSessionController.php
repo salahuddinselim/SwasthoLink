@@ -20,11 +20,25 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Handle an incoming authentication request. If the account has 2FA
+     * enabled, the password check succeeding does NOT establish a session —
+     * we immediately log back out and hand off to TwoFactorChallengeController,
+     * which is the only path that can call Auth::login() for that user.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
+
+        $user = Auth::user();
+
+        if ($user->hasTwoFactorEnabled()) {
+            Auth::logout();
+
+            $request->session()->put('two_factor.user_id', $user->id);
+            $request->session()->put('two_factor.remember', $request->boolean('remember'));
+
+            return redirect()->route('two-factor.challenge');
+        }
 
         $request->session()->regenerate();
 

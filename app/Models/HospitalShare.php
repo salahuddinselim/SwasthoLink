@@ -26,12 +26,15 @@ class HospitalShare extends Model
         'key_wrapped_for_recipient',
         'status',
         'accepted_at',
+        'revoked_by',
+        'revoked_at',
     ];
 
     protected function casts(): array
     {
         return [
             'accepted_at' => 'datetime',
+            'revoked_at' => 'datetime',
         ];
     }
 
@@ -58,5 +61,10 @@ class HospitalShare extends Model
     public function acceptedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'accepted_by');
+    }
+
+    public function revokedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revoked_by');
     }
 }

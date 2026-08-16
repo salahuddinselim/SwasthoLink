@@ -132,4 +132,86 @@ class HospitalShareTest extends TestCase
         $this->assertEquals('rejected', $share->status);
         $this->assertNull($share->initiator_private_exponent_encrypted);
     }
+
+    public function test_either_party_can_revoke_a_completed_share_and_it_becomes_unviewable(): void
+    {
+        [$userA, $hospitalA] = $this->makeApprovedHospital('Hospital A');
+        [$userB, $hospitalB] = $this->makeApprovedHospital('Hospital B');
+
+        $doctorKeys = app(RsaKeyService::class)->generateKeyPair();
+        $doctorUser = User::factory()->create(['role' => 'doctor', 'status' => 'active']);
+        DoctorProfile::create([
+            'user_id' => $doctorUser->id,
+            'hospital_id' => $hospitalA->id,
+            'bmdc_number' => 'BMDC-'.uniqid(),
+            'rsa_public_key' => $doctorKeys['public_key'],
+            'rsa_private_key_encrypted' => $doctorKeys['private_key_encrypted'],
+            'verified_at' => now(),
+        ]);
+
+        $prescription = Prescription::create([
+            'doctor_id' => $doctorUser->id,
+            'hospital_id' => $hospitalA->id,
+            'patient_name' => 'John Smith',
+            'patient_phone' => '01899998888',
+            'medicines' => 'Amoxicillin 500mg',
+        ]);
+
+        $this->actingAs($userA)->post(route('hospital.shares.store'), [
+            'prescription_id' => $prescription->id,
+            'recipient_hospital_id' => $hospitalB->id,
+        ]);
+
+        $share = HospitalShare::firstOrFail();
+        $this->actingAs($userB)->post(route('hospital.shares.accept', $share));
+        $share->refresh();
+        $this->assertEquals('completed', $share->status);
+
+        // The recipient revokes it.
+        $this->actingAs($userB)->post(route('hospital.shares.revoke', $share))
+            ->assertRedirect(route('hospital.shares.index'));
+
+        $share->refresh();
+        $this->assertEquals('revoked', $share->status);
+        $this->assertNotNull($share->revoked_at);
+        $this->assertNull($share->ciphertext);
+        $this->assertNull($share->key_wrapped_for_initiator);
+        $this->assertNull($share->key_wrapped_for_recipient);
+
+        // Neither party can view it anymore.
+        $this->actingAs($userA)->get(route('hospital.shares.show', $share))->assertNotFound();
+        $this->actingAs($userB)->get(route('hospital.shares.show', $share))->assertNotFound();
+
+        // Revoking again (already revoked) is rejected.
+        $this->actingAs($userB)->post(route('hospital.shares.revoke', $share))->assertNotFound();
+
+        // An uninvolved hospital cannot revoke shares it isn't party to.
+        [$userA2, $hospitalA2] = $this->makeApprovedHospital('Hospital A2');
+        [$userB2, $hospitalB2] = $this->makeApprovedHospital('Hospital B2');
+        $doctorKeys2 = app(RsaKeyService::class)->generateKeyPair();
+        $doctorUser2 = User::factory()->create(['role' => 'doctor', 'status' => 'active']);
+        DoctorProfile::create([
+            'user_id' => $doctorUser2->id,
+            'hospital_id' => $hospitalA2->id,
+            'bmdc_number' => 'BMDC-'.uniqid(),
+            'rsa_public_key' => $doctorKeys2['public_key'],
+            'rsa_private_key_encrypted' => $doctorKeys2['private_key_encrypted'],
+            'verified_at' => now(),
+        ]);
+        $prescription2 = Prescription::create([
+            'doctor_id' => $doctorUser2->id,
+            'hospital_id' => $hospitalA2->id,
+            'patient_name' => 'Jane Doe',
+            'patient_phone' => '01899991111',
+            'medicines' => 'Paracetamol 500mg',
+        ]);
+        $this->actingAs($userA2)->post(route('hospital.shares.store'), [
+            'prescription_id' => $prescription2->id,
+            'recipient_hospital_id' => $hospitalB2->id,
+        ]);
+        $share2 = HospitalShare::where('prescription_id', $prescription2->id)->firstOrFail();
+        $this->actingAs($userB2)->post(route('hospital.shares.accept', $share2));
+
+        $this->actingAs($userA)->post(route('hospital.shares.revoke', $share2))->assertNotFound();
+    }
 }

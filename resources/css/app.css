@@ -1,3 +1,91 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+[x-cloak] {
+    display: none !important;
+}
+
+/*
+ * Dark mode, applied globally via an `html.dark` toggle (see sidebar.blade.php)
+ * rather than Tailwind's `dark:` variant. Retrofitting `dark:` classes onto
+ * every existing view would mean touching dozens of files; since this app's
+ * Tailwind utility classes are drawn from a small, consistent palette, a
+ * handful of `.dark <selector>` overrides here covers the whole app. Selector
+ * specificity (0,0,2,0) beats the single-class Tailwind utility (0,0,1,0), so
+ * these win regardless of stylesheet order.
+ */
+html.dark body {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+
+html.dark .bg-brand-50 {
+    background-color: #0f172a;
+}
+
+html.dark .bg-white {
+    background-color: #1e293b;
+}
+
+html.dark .bg-gray-50,
+html.dark .bg-gray-100 {
+    background-color: #273449;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+    color: #f1f5f9;
+}
+
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
+    color: #cbd5e1;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+    color: #94a3b8;
+}
+
+html.dark .border,
+html.dark .border-b,
+html.dark .border-t,
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: #334155;
+}
+
+html.dark .shadow-sm,
+html.dark .shadow-md,
+html.dark .shadow {
+    --tw-shadow-color: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+}
+
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark select,
+html.dark textarea {
+    background-color: #273449;
+    border-color: #475569;
+    color: #f1f5f9;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+    color: #64748b;
+}
+
+html.dark .bg-red-100 { background-color: #4c1d1d; }
+html.dark .text-red-700, html.dark .text-red-800 { color: #fca5a5; }
+html.dark .bg-green-100 { background-color: #14342a; }
+html.dark .text-green-700, html.dark .text-green-800 { color: #86efac; }
+html.dark .bg-amber-50, html.dark .bg-amber-100 { background-color: #453213; }
+html.dark .text-amber-600, html.dark .text-amber-800 { color: #fcd34d; }
+html.dark .bg-brand-50, html.dark .bg-brand-100 { background-color: #0c3a52; }
+html.dark .text-brand-700, html.dark .text-brand-800, html.dark .text-brand-900 { color: #7dd3fc; }
+
+html.dark table thead {
+    background-color: #273449;
+}

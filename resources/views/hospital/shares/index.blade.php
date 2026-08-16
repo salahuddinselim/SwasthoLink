@@ -71,8 +71,16 @@
                                 </form>
                             @elseif ($share->status === 'completed')
                                 <a href="{{ route('hospital.shares.show', $share) }}" class="text-brand-700 underline">{{ __('View') }}</a>
+                                <form method="POST" action="{{ route('hospital.shares.revoke', $share) }}" onsubmit="return confirm('{{ __('Revoke this share? Neither hospital will be able to view it afterward.') }}');">
+                                    @csrf
+                                    <button type="submit" class="text-sm text-red-600 hover:text-red-800 underline">{{ __('Revoke') }}</button>
+                                </form>
                             @else
-                                <span class="text-gray-400">{{ ucfirst($share->status) }}</span>
+                                <span @class([
+                                    'px-2 py-1 text-xs rounded-full font-medium',
+                                    'bg-red-100 text-red-800' => $share->status === 'rejected',
+                                    'bg-gray-100 text-gray-600' => $share->status === 'revoked',
+                                ])>{{ ucfirst($share->status) }}</span>
                             @endif
                         </div>
                     </div>
@@ -89,14 +97,19 @@
                             <p class="font-medium">{{ $share->prescription->lookup_code }} {{ __('to') }} {{ $share->recipientHospital->name }}</p>
                             <p class="text-gray-500">{{ __('Sent') }} {{ $share->created_at->diffForHumans() }}</p>
                         </div>
-                        <div>
+                        <div class="flex items-center gap-2">
                             @if ($share->status === 'completed')
                                 <a href="{{ route('hospital.shares.show', $share) }}" class="text-brand-700 underline">{{ __('View') }}</a>
+                                <form method="POST" action="{{ route('hospital.shares.revoke', $share) }}" onsubmit="return confirm('{{ __('Revoke this share? Neither hospital will be able to view it afterward.') }}');">
+                                    @csrf
+                                    <button type="submit" class="text-sm text-red-600 hover:text-red-800 underline">{{ __('Revoke') }}</button>
+                                </form>
                             @else
                                 <span @class([
                                     'px-2 py-1 text-xs rounded-full font-medium',
                                     'bg-amber-100 text-amber-800' => $share->status === 'pending',
                                     'bg-red-100 text-red-800' => $share->status === 'rejected',
+                                    'bg-gray-100 text-gray-600' => $share->status === 'revoked',
                                 ])>{{ ucfirst($share->status) }}</span>
                             @endif
                         </div>

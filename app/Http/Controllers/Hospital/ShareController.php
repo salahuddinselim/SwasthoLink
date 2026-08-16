@@ -9,6 +9,7 @@ use App\Models\HospitalShare;
 use App\Models\Prescription;
 use App\Services\DhKeyExchangeService;
 use App\Services\EnvelopeEncryptionService;
+use App\Services\NotificationService;
 use App\Services\RsaKeyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class ShareController extends Controller
         private DhKeyExchangeService $dh,
         private EnvelopeEncryptionService $envelope,
         private RsaKeyService $rsaKeys,
+        private NotificationService $notifications,
     ) {}
 
     public function index(Request $request): View
@@ -104,6 +106,14 @@ class ShareController extends Controller
 
         AuditLog::record('hospital_share.initiated', $share, ['recipient_hospital_id' => $recipient->id]);
 
+        $this->notifications->notify(
+            $recipient->user,
+            'hospital_share.initiated',
+            "{$hospital->name} wants to share a prescription record with you",
+            $prescription->lookup_code,
+            route('hospital.shares.index'),
+        );
+
         return redirect()->route('hospital.shares.index')
             ->with('status', "Share request sent to {$recipient->name}. It completes once they accept.");
     }
@@ -169,7 +179,57 @@ class ShareController extends Controller
 
         AuditLog::record('hospital_share.accepted', $share);
 
+        $this->notifications->notify(
+            $share->initiatorHospital->user,
+            'hospital_share.accepted',
+            "{$hospital->name} accepted your share request",
+            $prescription->lookup_code,
+            route('hospital.shares.show', $share),
+        );
+
         return redirect()->route('hospital.shares.index')->with('status', 'Share accepted and decrypted successfully — key exchange complete.');
+    }
+
+    /**
+     * Either party to a completed share can revoke it — e.g. it was shared
+     * with the wrong hospital, or the patient later objected. Revoking wipes
+     * the encrypted payload and both wrapped keys so the record can no
+     * longer be decrypted by anyone, even from a database backup; it does
+     * not touch the original prescription, only this share.
+     */
+    public function revoke(Request $request, HospitalShare $share): RedirectResponse
+    {
+        $hospital = $request->user()->hospital;
+
+        $isParty = in_array($hospital->id, [$share->initiator_hospital_id, $share->recipient_hospital_id], true);
+
+        if (! $isParty || $share->status !== 'completed') {
+            abort(404);
+        }
+
+        $share->update([
+            'status' => 'revoked',
+            'revoked_by' => $request->user()->id,
+            'revoked_at' => now(),
+            'ciphertext' => null,
+            'iv' => null,
+            'auth_tag' => null,
+            'key_wrapped_for_initiator' => null,
+            'key_wrapped_for_recipient' => null,
+        ]);
+
+        AuditLog::record('hospital_share.revoked', $share);
+
+        $otherHospital = $hospital->id === $share->initiator_hospital_id ? $share->recipientHospital : $share->initiatorHospital;
+        $this->notifications->notify(
+            $otherHospital->user,
+            'hospital_share.revoked',
+            "{$hospital->name} revoked a shared record",
+            null,
+            route('hospital.shares.index'),
+        );
+
+        return redirect()->route('hospital.shares.index')->with('status', 'Share revoked — the record is no longer accessible to either hospital.');
     }
 
     public function reject(Request $request, HospitalShare $share): RedirectResponse
@@ -186,6 +246,14 @@ class ShareController extends Controller
         ]);
 
         AuditLog::record('hospital_share.rejected', $share);
+
+        $this->notifications->notify(
+            $share->initiatorHospital->user,
+            'hospital_share.rejected',
+            "{$hospital->name} rejected your share request",
+            null,
+            route('hospital.shares.index'),
+        );
 
         return redirect()->route('hospital.shares.index')->with('status', 'Share request rejected.');
     }

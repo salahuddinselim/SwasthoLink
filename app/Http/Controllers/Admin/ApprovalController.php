@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\DoctorProfile;
 use App\Models\Hospital;
 use App\Models\PharmacistProfile;
+use App\Services\NotificationService;
 use App\Services\RsaKeyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,10 @@ use Illuminate\View\View;
 
 class ApprovalController extends Controller
 {
-    public function __construct(private RsaKeyService $rsaKeys) {}
+    public function __construct(
+        private RsaKeyService $rsaKeys,
+        private NotificationService $notifications,
+    ) {}
 
     public function index(): View
     {
@@ -42,6 +46,7 @@ class ApprovalController extends Controller
         $hospital->user->update(['status' => 'active']);
 
         AuditLog::record('hospital.approved', $hospital);
+        $this->notifications->notify($hospital->user, 'hospital.approved', 'Your hospital account was approved', null, route('hospital.dashboard'));
 
         return back()->with('status', "Hospital \"{$hospital->name}\" approved.");
     }
@@ -54,6 +59,7 @@ class ApprovalController extends Controller
         $hospital->user->update(['status' => 'rejected']);
 
         AuditLog::record('hospital.rejected', $hospital, ['reason' => $request->reason]);
+        $this->notifications->notify($hospital->user, 'hospital.rejected', 'Your hospital registration was rejected', $request->reason);
 
         return back()->with('status', "Hospital \"{$hospital->name}\" rejected.");
     }
@@ -71,6 +77,7 @@ class ApprovalController extends Controller
         $doctor->user->update(['status' => 'active']);
 
         AuditLog::record('doctor.approved', $doctor);
+        $this->notifications->notify($doctor->user, 'doctor.approved', 'Your doctor account was approved', null, route('doctor.prescriptions.index'));
 
         return back()->with('status', "{$doctor->user->name} approved.");
     }
@@ -83,6 +90,7 @@ class ApprovalController extends Controller
         $doctor->user->update(['status' => 'rejected']);
 
         AuditLog::record('doctor.rejected', $doctor, ['reason' => $request->reason]);
+        $this->notifications->notify($doctor->user, 'doctor.rejected', 'Your doctor registration was rejected', $request->reason);
 
         return back()->with('status', "{$doctor->user->name} rejected.");
     }
@@ -96,6 +104,7 @@ class ApprovalController extends Controller
         $pharmacist->user->update(['status' => 'active']);
 
         AuditLog::record('pharmacist.approved', $pharmacist);
+        $this->notifications->notify($pharmacist->user, 'pharmacist.approved', 'Your pharmacist account was approved', null, route('pharmacist.dashboard'));
 
         return back()->with('status', "Pharmacist \"{$pharmacist->pharmacy_name}\" approved.");
     }
@@ -108,6 +117,7 @@ class ApprovalController extends Controller
         $pharmacist->user->update(['status' => 'rejected']);
 
         AuditLog::record('pharmacist.rejected', $pharmacist, ['reason' => $request->reason]);
+        $this->notifications->notify($pharmacist->user, 'pharmacist.rejected', 'Your pharmacist registration was rejected', $request->reason);
 
         return back()->with('status', "Pharmacist \"{$pharmacist->pharmacy_name}\" rejected.");
     }

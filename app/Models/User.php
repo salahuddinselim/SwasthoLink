@@ -27,6 +27,9 @@ class User extends Authenticatable
         'role',
         'status',
         'phone',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
     ];
 
     /**
@@ -37,6 +40,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -49,7 +54,26 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
+    }
+
+    /**
+     * Only Admin and Hospital accounts can enable 2FA — they hold the
+     * platform's root of trust and hospital RSA private keys respectively,
+     * so a compromised password there has far more reach than a
+     * compromised Doctor/Patient/Pharmacist account.
+     */
+    public function canUseTwoFactor(): bool
+    {
+        return in_array($this->role, ['admin', 'hospital'], true);
     }
 
     public function hospital(): HasOne
@@ -75,6 +99,40 @@ class User extends Authenticatable
     public function prescriptionsReceived(): HasMany
     {
         return $this->hasMany(Prescription::class, 'patient_id');
+    }
+
+    public function accessGrants(): HasMany
+    {
+        return $this->hasMany(PatientAccessGrant::class, 'patient_id');
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Short, human-readable identifier a patient can read out to a doctor
+     * (e.g. over the phone or at a desk) instead of their raw numeric id.
+     */
+    public function getPatientCodeAttribute(): ?string
+    {
+        return $this->role === 'patient' ? sprintf('PT-%06d', $this->id) : null;
+    }
+
+    /**
+     * Resolve a doctor's search input back to a patient account. Accepts
+     * either a "PT-000004"-style code or the patient's email address.
+     */
+    public static function resolvePatient(string $identifier): ?self
+    {
+        $identifier = trim($identifier);
+
+        if (preg_match('/^PT-0*(\d+)$/i', $identifier, $matches)) {
+            return static::where('id', (int) $matches[1])->where('role', 'patient')->first();
+        }
+
+        return static::where('email', $identifier)->where('role', 'patient')->first();
     }
 
     public function isAdmin(): bool

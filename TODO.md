@@ -36,6 +36,23 @@ Task list for SwasthoLink. Check off tasks as they're completed; uncheck if some
 - [x] Inline (on-blur) client-side form validation
 - [x] Written security report (threat model, what each crypto primitive defends against) — `SECURITY.md`
 - [x] Remove the vestigial `verified` middleware from `/dashboard` — `User` doesn't implement `MustVerifyEmail`, so it silently no-ops; either wire up real email verification or drop the dead middleware (found during `/qa`, not a bug, just cleanup)
+- [x] Hospital dashboard "Patients" section (roster of patients treated at that hospital, from its own prescriptions)
+- [x] Doctor "Patient Records" lookup by Patient ID/email, auto-visible within the doctor's own hospital
+- [x] Patient-issued, revocable, time-limited access codes (`PatientAccessGrant`) to unlock a patient's other-hospital history for a new doctor, with full audit logging
+- [x] Feature tests for the patient-record/access-grant system (`PatientRecordAccessTest`) and hospital-share revocation (`HospitalShareTest`)
+- [x] QR codes on lookup codes (`endroid/qr-code`, SVG writer — no GD extension available on this XAMPP setup) — shown on prescription creation, the doctor's prescription list, and the patient's prescription list
+- [x] Admin Audit Log viewer — paginated, filterable by action/user (previously DB-only)
+- [x] Hospital-to-hospital share revocation — either party can revoke a completed share, which wipes the ciphertext/wrapped keys so it's unrecoverable even from a DB backup
+- [x] Rate limiting on prescription creation and doctor patient-record search (previously only pharmacist lookup/verify were throttled)
+- [x] Doctor prescription list: search by patient name/lookup code + date range, plus an at-a-glance stats row (total/active/dispensed/unique patients)
+- [x] Responsive sidebar navigation (desktop: fixed left sidebar; mobile: hamburger + slide-over) replacing the old top nav bar, across all five role dashboards
+- [x] Pharmacist dashboard/overview page (codes looked up, signatures verified, dispensed count, failed 2nd-factor count, recent activity) — pharmacist previously had no landing page, just the lookup form
+- [x] Hospital dashboard overview stats (total prescriptions, patients treated, pending/completed shares)
+- [x] Printable prescription PDF (`barryvdh/laravel-dompdf`) — restricted to the doctor who wrote it, the patient it belongs to, and the hospital it was issued under (not pharmacist/admin); closes the gap where the README's "printed slip" offline-pharmacy flow had no actual print/export path
+- [x] Dark mode — manual toggle (not OS-preference-based), persisted via localStorage, implemented as global CSS overrides keyed to the app's existing Tailwind utility classes rather than retrofitting `dark:` variants across every view
+- [x] In-app notification bell — new `notifications` table/model, hooked into prescription creation, admin approvals/rejections, hospital share lifecycle (initiated/accepted/rejected/revoked), and patient-access-grant usage; dropdown + full list page, mark-as-read/mark-all-read
+- [x] CSV export — doctor's prescription list (respects active search/date filters), hospital's patient roster, admin audit log (respects active filters)
+- [x] TOTP two-factor authentication (`pragmarx/google2fa`), restricted to Admin and Hospital accounts (the two roles holding root-of-trust / hospital RSA private keys) — QR enrollment, 8 single-use recovery codes shown once, login-time challenge that only completes login on a valid code (password alone no longer suffices for these two roles once enabled), disable requires current-password confirmation. Feature tests in `TwoFactorAuthenticationTest` cover the full enable → challenge → recovery-code → disable cycle. Caught one real bug during testing: the new `two_factor_*` columns weren't added to `User::$fillable`, so `update()` was silently dropping them — confirm looked successful but nothing persisted. Test suite caught it immediately.
 
 ## Bugs Found & Fixed
 

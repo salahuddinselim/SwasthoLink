@@ -18,6 +18,25 @@
                 </dl>
             </div>
 
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white shadow-sm sm:rounded-lg p-5">
+                    <p class="text-sm text-gray-500">{{ __('Total Prescriptions') }}</p>
+                    <p class="text-3xl font-semibold text-gray-800">{{ $stats['total_prescriptions'] }}</p>
+                </div>
+                <div class="bg-white shadow-sm sm:rounded-lg p-5">
+                    <p class="text-sm text-gray-500">{{ __('Patients Treated') }}</p>
+                    <p class="text-3xl font-semibold text-gray-800">{{ $stats['total_patients'] }}</p>
+                </div>
+                <a href="{{ route('hospital.shares.index') }}" class="bg-white shadow-sm sm:rounded-lg p-5 hover:shadow-md transition">
+                    <p class="text-sm text-gray-500">{{ __('Pending Shares') }}</p>
+                    <p class="text-3xl font-semibold text-amber-600">{{ $stats['shares_pending'] }}</p>
+                </a>
+                <a href="{{ route('hospital.shares.index') }}" class="bg-white shadow-sm sm:rounded-lg p-5 hover:shadow-md transition">
+                    <p class="text-sm text-gray-500">{{ __('Completed Shares') }}</p>
+                    <p class="text-3xl font-semibold text-green-700">{{ $stats['shares_completed'] }}</p>
+                </a>
+            </div>
+
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <h3 class="text-lg font-semibold mb-4">{{ __('Affiliated Doctors') }}</h3>
 
@@ -42,6 +61,34 @@
             </div>
 
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">{{ __('Patients') }} ({{ __('treated at this hospital') }})</h3>
+                    @if ($patients->isNotEmpty())
+                        <a href="{{ route('hospital.patients.export') }}" class="text-sm text-brand-700 hover:text-brand-900 underline">{{ __('Export CSV') }}</a>
+                    @endif
+                </div>
+
+                @forelse ($patients as $patient)
+                    <div class="flex justify-between items-center border-b last:border-0 py-3">
+                        <div>
+                            <p class="font-medium">{{ $patient->patient_name }}</p>
+                            <p class="text-sm text-gray-500">
+                                {{ $patient->patient_phone }}
+                                @if ($patient->patient_email) &middot; {{ $patient->patient_email }} @endif
+                                @if ($patient->patient_id) &middot; {{ sprintf('PT-%06d', $patient->patient_id) }} @endif
+                            </p>
+                        </div>
+                        <div class="text-right text-sm text-gray-500">
+                            <p>{{ __(':count prescription(s)', ['count' => $patient->prescription_count]) }}</p>
+                            <p>{{ __('Last: :date', ['date' => \Illuminate\Support\Carbon::parse($patient->last_prescribed_at)->format('d M Y')]) }}</p>
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-sm text-gray-500">{{ __('No patients treated here yet.') }}</p>
+                @endforelse
+            </div>
+
+            <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <h3 class="text-lg font-semibold mb-4">{{ __('Recent Prescriptions') }} ({{ __('by affiliated doctors') }})</h3>
 
                 @forelse ($hospital->prescriptions as $prescription)
@@ -50,7 +97,10 @@
                             <span class="font-mono text-gray-600">{{ $prescription->lookup_code }}</span>
                             &mdash; {{ $prescription->patient_name }}
                         </div>
-                        <span class="text-gray-400">{{ $prescription->created_at->diffForHumans() }}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-gray-400">{{ $prescription->created_at->diffForHumans() }}</span>
+                            <a href="{{ route('prescriptions.pdf', $prescription) }}" class="text-brand-700 hover:text-brand-900 underline">{{ __('PDF') }}</a>
+                        </div>
                     </div>
                 @empty
                     <p class="text-sm text-gray-500">{{ __('No prescriptions yet.') }}</p>
